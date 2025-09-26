@@ -1,0 +1,12 @@
+-- Create the groups table
+CREATE TABLE boys.groups (
+    id UUID PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO boys.users (id, name) VALUES
+      ('550e8400-e29b-41d4-a716-446655440001', 'Alex'),
+      ('550e8400-e29b-41d4-a716-446655440002', 'Sam'),
+      ('550e8400-e29b-41d4-a716-446655440003', 'Jake');

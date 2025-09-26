@@ -1,12 +1,17 @@
+import org.openapitools.generator.gradle.plugin.tasks.GenerateTask
+
 plugins {
 	id 'java'
 	id 'org.springframework.boot' version '3.5.4'
 	id 'io.spring.dependency-management' version '1.1.7'
+  id 'org.openapi.generator' version '7.14.0'
 }
 
 group = 'se.bytebrew'
 version = '0.0.1-SNAPSHOT'
 description = 'Backend for Boys application'
+
+ext.apiVersion = '0.5.0'
 
 java {
 	toolchain {
@@ -22,26 +27,150 @@ configurations {
 
 repositories {
 	mavenCentral()
+  maven {
+    name = 'nexus'
+    url = 'https://artifacts.bytebrew.se/repository/maven-releases/'
+    credentials {
+      username = System.getenv("NEXUS_USER")
+      password = System.getenv("NEXUS_PASSWORD")
+    }
+  }
 }
 
 dependencies {
-	implementation 'org.springframework.boot:spring-boot-starter-actuator'
-	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
-	implementation 'org.springframework.boot:spring-boot-starter-security'
-	implementation 'org.springframework.boot:spring-boot-starter-web'
-	implementation 'org.flywaydb:flyway-core'
-	implementation 'org.flywaydb:flyway-database-postgresql'
-	compileOnly 'org.projectlombok:lombok'
-	developmentOnly 'org.springframework.boot:spring-boot-devtools'
-	runtimeOnly 'com.h2database:h2'
-	runtimeOnly 'org.postgresql:postgresql'
-	annotationProcessor 'org.projectlombok:lombok'
-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testImplementation 'org.springframework.security:spring-security-test'
-	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+  // Spring
+  implementation 'org.springframework.boot:spring-boot-starter-actuator'
+  implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+  implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+  implementation 'org.springframework.boot:spring-boot-starter-security'
+  implementation 'org.springframework.boot:spring-boot-starter-web'
+  implementation 'org.springframework.boot:spring-boot-starter-validation'
+  implementation 'se.bytebrew:spring-boot-starter:1.0.0'
+
+  // Open-API
+  implementation 'org.openapitools:jackson-databind-nullable:0.2.6'
+  implementation 'io.swagger.core.v3:swagger-annotations:2.2.15'
+  implementation 'jakarta.validation:jakarta.validation-api:3.0.2'
+  implementation 'jakarta.annotation:jakarta.annotation-api:2.1.1'
+
+  // Database
+  implementation 'org.flywaydb:flyway-core'
+  implementation 'org.flywaydb:flyway-database-postgresql'
+  runtimeOnly 'com.h2database:h2'
+  runtimeOnly 'org.postgresql:postgresql'
+
+  // Quality of Life
+  compileOnly 'org.projectlombok:lombok'
+  annotationProcessor 'org.projectlombok:lombok'
+  developmentOnly 'org.springframework.boot:spring-boot-devtools'
+
+  // Observability
+  runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
+
+  // Test
+  testImplementation 'org.springframework.boot:spring-boot-starter-test'
+  testImplementation 'org.springframework.security:spring-security-test'
+  testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 tasks.named('test') {
 	useJUnitPlatform()
 }
+
+
+tasks.register('downloadApiSpecs') {
+    description = 'Download API specifications from Nexus'
+
+    def specsDir = layout.buildDirectory.dir("downloaded-specs")
+    def nexusUrl = "https://artifacts.bytebrew.se/repository/maven-releases"
+    def groupId = "se.bytebrew"
+    def artifactId = "boys-api"
+    def version = apiVersion
+
+    outputs.dir specsDir
+
+    doLast {
+        specsDir.get().asFile.mkdirs()
+
+        def artifactUrl = "${nexusUrl}/${groupId.replace('.', '/')}/${artifactId}/${version}/${artifactId}-${version}.jar"
+        def tempFile = file("${temporaryDir}/api-specs.jar")
+
+        // Download the JAR
+        ant.get(
+                src: artifactUrl,
+                dest: tempFile,
+                username: System.getenv("NEXUS_USER"),
+                password: System.getenv("NEXUS_PASSWORD")
+        )
+
+        // DEBUG: List everything in the JAR
+        println "=== Contents of downloaded JAR ==="
+        zipTree(tempFile).visit { fileDetails ->
+            println "  ${fileDetails.relativePath}"
+        }
+
+        // Extract YAML files from JAR
+        copy {
+            from zipTree(tempFile)
+            into specsDir
+            include "**/*.yaml"
+        }
+
+        println "Downloaded API specs version ${version} to ${specsDir.get().asFile.path}"
+    }
+}
+
+// tasks.register('generateAuthApi', GenerateTask) {
+//     generatorName = 'spring'
+//     inputSpec = layout.buildDirectory.file("downloaded-specs/common/auth.yaml").get().asFile.path
+//     outputDir = layout.buildDirectory.dir("generated-auth").get().asFile.path
+//     apiPackage = 'se.bytebrew.auth.api'
+//     modelPackage = 'se.bytebrew.auth.model'
+//     configOptions = [
+//             interfaceOnly : 'true',
+//             useSpringBoot3: 'true'
+//     ]
+// }
+//
+// tasks.register('generateExperienceApi', GenerateTask) {
+//     generatorName = 'spring'
+//     inputSpec = layout.buildDirectory.file("downloaded-specs/experience-tracker/experience-tracker.yaml").get().asFile.path
+//     outputDir = layout.buildDirectory.dir("generated-experience").get().asFile.path
+//     apiPackage = 'se.bytebrew.experiencetracker.api'
+//     modelPackage = 'se.bytebrew.experiencetracker.model'
+//     configOptions = [
+//             interfaceOnly : 'true',
+//             useSpringBoot3: 'true'
+//     ]
+// }
+//
+// tasks.register('generateVideoGameTimerApi', GenerateTask) {
+//     generatorName = 'spring'
+//     inputSpec = layout.buildDirectory.file("downloaded-specs/video-game-timer/video-game-timer.yaml").get().asFile.path
+//     outputDir = layout.buildDirectory.dir("generated-videogametimer").get().asFile.path
+//     apiPackage = 'se.bytebrew.videogametimer.api'
+//     modelPackage = 'se.bytebrew.videogametimer.model'
+//     configOptions = [
+//             interfaceOnly : 'true',
+//             useSpringBoot3: 'true'
+//     ]
+// }
+//
+// tasks.register('generateAllApis') {
+//     description = 'Generate all API clients and models'
+//     dependsOn generateAuthApi, generateExperienceApi, generateVideoGameTimerApi
+// }
+//
+// afterEvaluate {
+//     generateAuthApi.dependsOn downloadApiSpecs
+//     generateExperienceApi.dependsOn downloadApiSpecs
+//     generateVideoGameTimerApi.dependsOn downloadApiSpecs
+//
+//     compileJava.dependsOn generateAllApis
+// }
+//
+// sourceSets.main.java.srcDirs(
+//         layout.buildDirectory.dir("generated-auth/src/main/java"),
+//         layout.buildDirectory.dir("generated-experience/src/main/java"),
+//         layout.buildDirectory.dir("generated-videogametimer/src/main/java")
+// )

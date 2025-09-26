@@ -1,0 +1,19 @@
+CREATE SCHEMA IF NOT EXISTS boys;
+
+-- Create the users table
+CREATE TABLE boys.users (
+    id UUID PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO boys.users (id, name) VALUES
+      ('550e8400-e29b-41d4-a716-446655440001', 'Måns'),
+      ('550e8400-e29b-41d4-a716-446655440002', 'Anton'),
+      ('550e8400-e29b-41d4-a716-446655440003', 'Gustav');
+      ('550e8400-e29b-41d4-a716-446655440004', 'Joel');
+      ('550e8400-e29b-41d4-a716-446655440005', 'Simon');
+      ('550e8400-e29b-41d4-a716-446655440006', 'Peter');
+      ('550e8400-e29b-41d4-a716-446655440007', 'Jonas');
+      ('550e8400-e29b-41d4-a716-446655440008', 'Hugo');
